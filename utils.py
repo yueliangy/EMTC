@@ -401,7 +401,7 @@ def clustering1(X, true_label, num_cluster):
     true_label = label_encoder.fit_transform(true_label)
     metrics = eva(X, true_label, predict_labels, show_details=False)
 
-    # 提取各个指标
+
     slt = metrics["silhouette_score"]
     dbi = metrics["davies_bouldin_index"]
     CH = metrics["calinski_harabasz_index"]
@@ -412,5 +412,6 @@ def clustering1(X, true_label, num_cluster):
     rec = metrics["rec"]
     nmi = metrics["nmi"]
     dunn = metrics["Dunn"]
+
 
     return acc, dcv, f1, pre, rec, nmi, slt, dbi, CH, dunn, predict_labels
