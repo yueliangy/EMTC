@@ -4,7 +4,6 @@ from torch import nn
 import numpy as np
 from cov import DilatedConvEncoder
 from Evolving_Mask import *
-from CAE import *
 import math
 from ATIN import ATIN_op
 
@@ -234,6 +233,7 @@ class EMTC(nn.Module):
         important_indices = important_indices.squeeze(-1)
 
         return important_indices
+
 
 
 
