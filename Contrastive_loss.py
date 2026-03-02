@@ -29,19 +29,75 @@ def calculate_contrastive(fused_data, soft_assignments):
     return loss
 
 def calculate_contrastive1(fused_data, predicted_labels):
-    N, f = fused_data.shape
-    similarity_matrix = F.cosine_similarity(fused_data.unsqueeze(1), fused_data.unsqueeze(0), dim=2)  # (N, N)
+    """
+    Implements the Clustering-Guided MEV Contrastive Learning (CMC) loss.
+    """
+    # [Fix] Ensure predicted_labels is a Tensor and on the correct device
+    if not isinstance(predicted_labels, torch.Tensor):
+        predicted_labels = torch.tensor(predicted_labels)
 
-    loss = 0.0
-    for i in range(N):
-        pos_idx = predicted_labels[i]
-        pos_similarity = similarity_matrix[i, pos_idx]
-        neg_similarities = similarity_matrix[i]
-        neg_similarities[pos_idx] = 0
-        logits = torch.cat([pos_similarity.unsqueeze(0), neg_similarities], dim=0)
-        loss += F.cross_entropy(logits.unsqueeze(0), torch.zeros(1, dtype=torch.long).to(fused_data.device))
+    # Ensure it's on the same device as the data
+    predicted_labels = predicted_labels.to(fused_data.device)
 
-    loss /= N
+    device = fused_data.device
+    N = fused_data.shape[0]
+
+    # 1. Normalize features for Cosine Similarity
+    features = F.normalize(fused_data, dim=1)
+
+    # 2. Compute Similarity Matrix (N, N)
+    # Temperature parameter (tau) is typically 0.5 or 0.07 in contrastive learning
+    temperature = 0.5
+    similarity_matrix = torch.matmul(features, features.T) / temperature
+
+    # 3. Construct Masks (Cluster Alignment)
+    # predicted_labels contains cluster IDs.
+    labels = predicted_labels.view(-1, 1)
+
+    # mask: (N, N) where mask[i, j] = 1 if sample i and j are in the same cluster
+    mask = torch.eq(labels, labels.T).float()
+
+    # Mask out self-contrast (diagonal)
+    # We must exclude the sample itself from being its own positive pair
+    logits_mask = torch.scatter(
+        torch.ones_like(mask),
+        1,
+        torch.arange(N).view(-1, 1).to(device),
+        0
+    )
+
+    # 'mask' now indicates valid Positive Pairs (same cluster, different sample)
+    mask = mask * logits_mask
+
+    # 4. Compute Loss
+    # Numerical stability: subtract max per row
+    logits_max, _ = torch.max(similarity_matrix, dim=1, keepdim=True)
+    logits = similarity_matrix - logits_max.detach()
+
+    # Denominator: sum of exp(sim) for ALL other samples (Pos + Neg)
+    # Note: We use logits_mask to exclude self-similarity from the denominator
+    exp_logits = torch.exp(logits) * logits_mask
+    log_prob_sum = torch.log(exp_logits.sum(1, keepdim=True) + 1e-8)
+
+    # Numerator: log(exp(sim)) for Positive pairs
+    # Since we want -log( sum(exp(pos)) / sum(exp(all)) )
+    # This is equivalent to: - ( log(sum(exp(pos))) - log(sum(exp(all))) )
+
+    # Compute sum of exp(pos)
+    exp_pos = (mask * exp_logits).sum(1, keepdim=True)
+    log_prob_pos = torch.log(exp_pos + 1e-8)
+
+    # Calculate loss for each sample
+    # Formula: - log ( sum_pos / sum_all ) = - (log_prob_pos - log_prob_sum)
+    # We only compute loss for samples that actually HAVE positive pairs (mask.sum(1) > 0)
+    # If a sample is the only one in its cluster, mask.sum(1) will be 0, leading to valid_mask=0
+
+    per_sample_loss = - (log_prob_pos - log_prob_sum)
+
+    # Handle cases where a cluster has only 1 sample (no positive pairs)
+    valid_mask = (mask.sum(1) > 0).float()
+    loss = (per_sample_loss.flatten() * valid_mask).sum() / (valid_mask.sum() + 1e-8)
+
     return loss
 
 
@@ -176,4 +232,5 @@ def calculate_intra_cluster_loss(pooled_features, predict_labels):
         intra_cluster_loss = torch.tensor(0.0)
 
     return intra_cluster_loss
+
 
