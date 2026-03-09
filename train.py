@@ -74,7 +74,7 @@ gama = 1
 temperature = 100
 quan = 0.9      #
 
-for seed in [5,9,18]:
+for seed in [5,6,7]:
 
     setup_seed(seed)
     train_data = data_train
@@ -320,6 +320,7 @@ print(f"acc: {acc_list.mean():.4f} ± {acc_list.std():.4f}")
 print(f"f1: {f1_list.mean():.4f} ± {f1_list.std():.4f}")
 print(f"nmi: {nmi_list.mean():.4f} ± {nmi_list.std():.4f}")
 print(f"ari: {ari_list.mean():.4f} ± {ari_list.std():.4f}")
+
 
 
 
