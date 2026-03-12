@@ -303,115 +303,28 @@ def setup_seed(seed):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-import skfuzzy as fuzz
+def clustering(X, true_label, num_cluster):
+    if torch.is_tensor(X):
+        X = X.detach().cpu().numpy()
 
-def clustering(X, true_label, num_cluster, draw=0):
     k_predicted_labels = sf_kmeans(X, 'cuda', num_cluster).numpy()
     predict_labels = k_predicted_labels.reshape(-1)
     label_encoder = LabelEncoder()
     true_label = label_encoder.fit_transform(true_label)
     metrics = eva(X, true_label, predict_labels, show_details=False)
-    # metrics1 = eva(X, true_label, k_predicted_labels, show_details=False)
 
-    if draw == 1:
-        # ====================================================================UMAP
-        # reducer = UMAP(n_components=2, random_state=42)
-        # combined_data = np.vstack([X])
-        # reducer.fit(combined_data)
-        #
-        # combined_embedding = reducer.fit_transform(combined_data)
-        # data_projected = combined_embedding[:len(X)]
-        #
-        # plt.figure(figsize=(14, 8))
-        #
-        # plt.scatter(data_projected[:, 0], data_projected[:, 1],
-        #         c=predict_labels,
-        #         cmap='tab20', alpha=0.6, s=20)
-        #
-        #
-        # plt.title("Visualization - UMAP")
-        # plt.colorbar(label='Cluster ID')
-        # plt.show()
-        # ====================================================================UMAP
-
-        # ====================================================================TSNE
-        reducer = TSNE(n_components=2, random_state=4)
-        combined_data = np.vstack([X])
-        combined_embedding = reducer.fit_transform(combined_data)
-        data_projected = combined_embedding[:len(X)]
-
-        plt.figure(figsize=(14, 8))
-
-        plt.scatter(
-            data_projected[:, 0],
-            data_projected[:, 1],
-            c=predict_labels,
-            cmap='tab20',
-            alpha=0.6,
-            s=20
-        )
-
-        plt.grid(True, linestyle='--', alpha=0.3, color='gray')
-
-        plt.savefig('WHB-3.pdf', dpi=300, bbox_inches='tight', format='pdf')
-        plt.show()
-        # ====================================================================TSNE
-
-        # ====================================================================MDS
-
-        # reducer = MDS(n_components=2, random_state=42)
-        # combined_data = np.vstack([X])
-        #
-        # combined_embedding = reducer.fit_transform(combined_data)
-        #
-        # data_projected = combined_embedding[:len(X)]
-        #
-        # plt.figure(figsize=(14, 8))
-        #
-        # plt.scatter(data_projected[:, 0], data_projected[:, 1],
-        #         c=predict_labels,
-        #         cmap='tab20', alpha=0.6, s=20)
-        #
-        #
-        # plt.title("Visualization - MDS")
-        # plt.colorbar(label='Cluster ID')
-        # plt.show()
-        # ====================================================================MDS
-
-
-    slt = metrics["silhouette_score"]
-    dbi = metrics["davies_bouldin_index"]
-    CH = metrics["calinski_harabasz_index"]
     acc = metrics["acc"]
-    dcv = metrics["dcv"]
     f1 = metrics["f1"]
-    pre = metrics["pre"]
-    rec = metrics["rec"]
     nmi = metrics["nmi"]
-    dunn = metrics["Dunn"]
     ari = metrics["ari"]
 
-    return acc, dcv, f1, pre, rec, nmi, slt, dbi, CH, dunn, ari, predict_labels
+    return acc, f1, nmi, ari, predict_labels
 
-def clustering1(X, true_label, num_cluster):
-    X = X.detach().numpy()
+def clustering1(X, num_cluster):
+    if torch.is_tensor(X):
+        X = X.detach().cpu().numpy()
+
     k_predicted_labels = sf_kmeans(X, 'cuda', num_cluster).numpy()
     predict_labels = k_predicted_labels.reshape(-1)
-    label_encoder = LabelEncoder()
-    true_label = label_encoder.fit_transform(true_label)
-    metrics = eva(X, true_label, predict_labels, show_details=False)
 
-
-    slt = metrics["silhouette_score"]
-    dbi = metrics["davies_bouldin_index"]
-    CH = metrics["calinski_harabasz_index"]
-    acc = metrics["acc"]
-    dcv = metrics["dcv"]
-    f1 = metrics["f1"]
-    pre = metrics["pre"]
-    rec = metrics["rec"]
-    nmi = metrics["nmi"]
-    dunn = metrics["Dunn"]
-
-
-    return acc, dcv, f1, pre, rec, nmi, slt, dbi, CH, dunn, predict_labels
+    return predict_labels
